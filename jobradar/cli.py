@@ -40,6 +40,8 @@ def fetch_boards(boards: list[dict], cfg: dict) -> tuple[list[Job], list[str]]:
                     jobs += mod.fetch(b, role)
             else:
                 jobs += mod.fetch(b)   # these APIs return the whole board; filters do the matching
+            if b.get("_partial"):
+                errors.append(f"{b['source']} {b.get('slug')}: partial board, {b.pop('_partial')}")
         except Exception as e:
             errors.append(f"{b.get('source')} {b.get('slug') or b.get('careers_url')}: {e}")
     return jobs, errors

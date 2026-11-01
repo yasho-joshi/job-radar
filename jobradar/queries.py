@@ -81,7 +81,10 @@ def board_from_url(url: str) -> dict | None:
         return None
     host = parts.netloc.lower()
     segs = [s for s in parts.path.split("/") if s]
-    if _GH.match(host) and segs and segs[0] not in ("embed",):
+    if _GH.match(host) and segs:
+        if segs[0] == "embed":          # embedded boards name the company in ?for=<slug>
+            m = re.search(r"(?:^|&)for=([A-Za-z0-9_-]+)", parts.query)
+            return {"source": "greenhouse", "slug": m.group(1).lower()} if m else None
         return {"source": "greenhouse", "slug": segs[0].lower()}
     if host in ("jobs.lever.co", "jobs.eu.lever.co") and segs:
         b = {"source": "lever", "slug": segs[0].lower()}

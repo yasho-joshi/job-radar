@@ -7,16 +7,31 @@ from datetime import datetime, timezone
 from ..http import fetch_json
 from ..models import Job, detect_work_mode, html_to_text
 
-API = "https://{host}/v0/postings/{slug}?mode=json"
+API = "https://{host}/v0/postings/{slug}?mode=json&limit={limit}&skip={skip}"
+PAGE = 100
+MAX_PAGES = 30          # 3,000 postings; aggregators like Jobgether run boards bigger than one response should be
 
 
 def fetch(board: dict, query: str = "") -> list[Job]:
     slug = board["slug"]
     host = "api.eu.lever.co" if board.get("region") == "eu" else "api.lever.co"
     company = board.get("name") or slug
-    data = fetch_json(API.format(host=host, slug=slug))
+    data: list = []
+    for page in range(MAX_PAGES):
+        try:
+            chunk = fetch_json(API.format(host=host, slug=slug, limit=PAGE, skip=page * PAGE))
+        except Exception:
+            if page == 0:
+                raise
+            board["_partial"] = f"stopped after {len(data)} postings (page {page + 1} failed)"
+            break      # keep the pages we already have rather than losing the whole board
+        if not isinstance(chunk, list):
+            break
+        data += chunk
+        if len(chunk) < PAGE:
+            break
     jobs = []
-    for j in data if isinstance(data, list) else []:
+    for j in data:
         url = j.get("hostedUrl")
         if not url:
             continue
