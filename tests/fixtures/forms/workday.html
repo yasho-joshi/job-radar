@@ -1,0 +1,78 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Sr. Product Manager | Testco Workday</title>
+<style>.step{display:none}.step.on{display:block} [role=listbox]{border:1px solid #999} .hide{display:none}</style>
+</head><body>
+<!-- Mimics Workday: data-automation-id hooks, Select One dropdown buttons, a selectinput picker, progress bar. -->
+<div id="posting"><h2 data-automation-id="jobPostingHeader">Sr. Product Manager</h2>
+  <a href="#" data-automation-id="adventureButton" role="button" onclick="document.getElementById('pop').classList.remove('hide');return false">Apply</a></div>
+<div id="pop" class="hide" data-automation-id="wd-popup-content">
+  <a href="#" role="button" data-automation-id="autofillWithResume" onclick="startFlow();return false">Autofill with Resume</a>
+  <a href="#" role="button" data-automation-id="applyManually" onclick="startFlow();return false">Apply Manually</a></div>
+
+<div id="flow" class="hide">
+ <ol data-automation-id="progressBar"><li id="pb" data-automation-id="progressBarActiveStep">Autofill with Resume</li></ol>
+ <div id="signin" class="hide" data-automation-id="signInContent"><button>Sign in with email</button><input type="password"></div>
+
+ <div class="step" id="s0"><div data-automation-id="fileUploadPanel"><label for="up">Upload resume</label>
+   <input id="up" type="file" data-automation-id="file-upload-input-ref"></div></div>
+
+ <div class="step" id="s1">
+  <label for="fn">First Name*</label><input id="fn" aria-required="true">
+  <label for="ln">Last Name*</label><input id="ln" aria-required="true">
+  <label for="em">Email*</label><input id="em" aria-required="true">
+  <label for="ph">Phone Number*</label><input id="ph" aria-required="true">
+  <label for="ctry">Country*</label><button id="ctry" aria-haspopup="listbox" aria-required="true" onclick="openList(this,['India','United States'])">Select One</button>
+  <label for="src">How Did You Hear About Us?*</label>
+  <div data-automation-id="multiselectInputContainer"><input id="src" data-uxi-widget-type="selectinput" aria-required="true" placeholder="Search"
+       onkeydown="if(event.key==='Enter'){showPrompt(this,['LinkedIn','Glassdoor','Employee Referral'])}"></div>
+ </div>
+
+ <div class="step" id="s2">
+  <label for="auth">Are you legally authorized to work in India?*</label><button id="auth" aria-haspopup="listbox" aria-required="true" onclick="openList(this,['Yes','No'])">Select One</button>
+  <label for="sp">Will you now or in the future require sponsorship to work in India?*</label><button id="sp" aria-haspopup="listbox" aria-required="true" onclick="openList(this,['Yes','No'])">Select One</button>
+  <label for="np">What is your notice period?*</label><input id="np" aria-required="true">
+  <label for="ctc">What is your expected CTC?*</label><input id="ctc" aria-required="true">
+ </div>
+
+ <div class="step" id="s3">
+  <label for="gen">Gender</label><button id="gen" aria-haspopup="listbox" onclick="openList(this,['Male','Female','I do not wish to self-identify'])">Select One</button>
+  <div><input type="checkbox" id="terms" required><label for="terms">I have read and consent to the terms and privacy policy*</label></div>
+ </div>
+
+ <div class="step" id="s4"><h3>Review</h3><button data-automation-id="pageFooterSubmitButton" onclick="submitAll()">Submit</button></div>
+
+ <div data-automation-id="errorMessage" id="err" class="hide" role="alert"></div>
+ <button id="next" data-automation-id="pageFooterNextButton" onclick="next()">Save and Continue</button>
+</div>
+<div id="lb" role="listbox" class="hide"></div>
+
+<script>
+const names = ['Autofill with Resume','My Information','Application Questions','Voluntary Disclosures','Review'];
+let cur = 0;
+function startFlow(){ document.getElementById('pop').classList.add('hide'); document.getElementById('posting').classList.add('hide');
+  document.getElementById('flow').classList.remove('hide');
+  if (new URLSearchParams(location.search).get('signin')==='1') { document.getElementById('signin').classList.remove('hide'); return; }
+  show(0); }
+function show(i){ cur=i; document.querySelectorAll('.step').forEach((s,k)=>s.classList.toggle('on',k===i));
+  document.getElementById('pb').textContent = names[i]; document.getElementById('next').classList.toggle('hide', i===4); }
+window.finishSignIn = () => { document.getElementById('signin').remove(); show(0); };
+function openList(btn, opts){ const lb=document.getElementById('lb'); lb.innerHTML='';
+  opts.forEach(o=>{ const d=document.createElement('div'); d.setAttribute('role','option'); d.textContent=o;
+    d.onclick=()=>{ btn.textContent=o; lb.classList.add('hide'); }; lb.appendChild(d); }); lb.classList.remove('hide'); }
+function showPrompt(inp, opts){ const lb=document.getElementById('lb'); lb.innerHTML='';
+  opts.filter(o=>o.toLowerCase().includes(inp.value.toLowerCase())).forEach(o=>{ const d=document.createElement('div');
+    d.setAttribute('data-automation-id','promptOption'); d.textContent=o;
+    d.onclick=()=>{ const s=document.createElement('span'); s.setAttribute('data-automation-id','selectedItem'); s.textContent=o;
+      inp.parentElement.appendChild(s); inp.value=''; lb.classList.add('hide'); }; lb.appendChild(d); }); lb.classList.remove('hide'); }
+const val = id => { const e=document.getElementById(id); return e.tagName==='BUTTON' ? (e.textContent==='Select One'?'':e.textContent) : e.value; };
+function next(){ const err=document.getElementById('err'); const need={1:['fn','ln','em','ph','ctry'],2:['auth','sp','np','ctc']}[cur]||[];
+  let missing = need.filter(id=>!val(id));
+  if (cur===0 && !document.getElementById('up').files.length) missing=['resume'];
+  if (cur===1 && !document.querySelector('#s1 [data-automation-id=selectedItem]')) missing.push('src');
+  if (cur===3 && !document.getElementById('terms').checked) missing.push('terms');
+  if (missing.length){ err.textContent='Errors: '+missing.join(', '); err.classList.remove('hide'); return; }
+  err.classList.add('hide'); show(cur+1); }
+function submitAll(){ const p={fn:val('fn'),ln:val('ln'),em:val('em'),ph:val('ph'),ctry:val('ctry'),
+  src:(document.querySelector('#s1 [data-automation-id=selectedItem]')||{}).textContent, auth:val('auth'), sp:val('sp'),
+  np:val('np'), ctc:val('ctc'), gen:val('gen'), resume:(document.getElementById('up').files[0]||{}).name};
+  document.body.innerHTML='<h1>Application Submitted</h1><pre id="payload">'+JSON.stringify(p)+'</pre>'; }
+</script></body></html>

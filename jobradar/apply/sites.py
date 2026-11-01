@@ -36,6 +36,11 @@ SITES = {
                        SUCCESS_COMMON, CLOSED_COMMON),
     "lever": Site("lever", r"^jobs(\.eu)?\.lever\.co$", r"^submit application$", SUCCESS_COMMON, CLOSED_COMMON),
     "ashby": Site("ashby", r"^jobs\.ashbyhq\.com$", r"^submit application$", SUCCESS_COMMON, CLOSED_COMMON),
+    # Workday: you sign in yourself when it asks (the runner pauses); then a 6-7 step flow ending in Review.
+    "workday": Site("workday", r"^[a-z0-9-]+\.wd\d+\.myworkdayjobs\.com$", r"^submit$",
+                    SUCCESS_COMMON + r"|application submitted|congratulations|you have successfully applied",
+                    CLOSED_COMMON + r"|job posting is no longer available|this position has been filled",
+                    next_re=r"^(save and continue|next|continue)$", max_per_run=5, delay=(30, 60)),
     "linkedin": Site("linkedin", r"^([a-z]{2,3}\.)?linkedin\.com$", r"^submit application$",
                      r"application (was )?sent|your application was sent|applied", CLOSED_COMMON,
                      next_re=r"^(next|continue( to next step)?|review( your application)?)$",
@@ -63,6 +68,20 @@ def detect(url: str) -> Site | None:
                 return None
             return site
     return None
+
+
+WORKDAY_SIGNIN_JS = r"""
+() => !!document.querySelector('[data-automation-id="signInContent"], [data-automation-id="createAccountContent"], '
+  + '[data-automation-id="signInSubmitButton"], [data-automation-id="createAccountSubmitButton"]')
+  || [...document.querySelectorAll('input[type=password]')].some(i => i.getBoundingClientRect().width > 0)
+"""
+
+
+def needs_sign_in(page) -> bool:
+    try:
+        return bool(page.evaluate(WORKDAY_SIGNIN_JS))
+    except Exception:
+        return False
 
 
 def blocked_reason(page) -> str | None:

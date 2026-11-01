@@ -253,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
 
     ap = sub.add_parser("apply", help="Playwright auto-apply (review a sample per site, then automatic if you approve)")
     ap.add_argument("action", choices=["queue", "prep", "run", "login", "status", "revoke"])
-    ap.add_argument("--site", choices=["greenhouse", "lever", "ashby", "linkedin"])
+    ap.add_argument("--site", choices=["greenhouse", "lever", "ashby", "workday", "linkedin"])
     ap.add_argument("--job", help="a single job URL")
     ap.add_argument("--company"); ap.add_argument("--role")
     ap.set_defaults(fn=cmd_apply)

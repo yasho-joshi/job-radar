@@ -56,7 +56,11 @@ class ScriptedConsole:
         self.asked.append(prompt)
         if not self.replies:
             raise AssertionError(f"unexpected prompt: {prompt}")
-        return self.replies.pop(0)
+        r = self.replies.pop(0)
+        if callable(r):          # a step the "user" performs in the browser (e.g. signing in)
+            r()
+            return ""
+        return r
 
 
 @unittest.skipIf(sync_playwright is None, "playwright not installed")
@@ -163,6 +167,36 @@ class ApplyFlow(unittest.TestCase):
         self.assertEqual(counts["skipped"], 1)
         self.assertFalse(runner.TRACKER.exists())
 
+    def test_workday_signin_handoff_steps_and_review(self):
+        (self.t / "profile" / "answers.toml").write_text(ANSWERS_TOML.replace(
+            "[work_rights]", 'country = "India"\n[work_rights]').replace(
+            'expected_salary = "INR 55 LPA"',
+            'expected_salary = "INR 50 LPA"\nnotice_period = "30 days"\nhear_about = "LinkedIn"'),
+            encoding="utf-8")
+        it = runner.QueueItem(company="Testco", role="Senior Product Manager",
+                              url=(FORMS / "workday.html").as_uri() + "?signin=1", site=SITES["workday"],
+                              verdict="Strong Fit", files={"resume": str(self.cv)})
+        page = self.browser.new_page()
+        io = ScriptedConsole([lambda: page.evaluate("finishSignIn()"),   # the user signs in themselves
+                              "1", "n",                                   # consent checkbox: user says yes, don't reuse
+                              "s", "q"])                                  # submit the sample, then stop
+        try:
+            counts = runner.run([it], io=io, page_factory=lambda: page, delay_scale=0)
+            payload = json.loads(page.inner_text("#payload")) if page.locator("#payload").count() else {}
+        finally:
+            page.close()
+        self.assertEqual(counts["submitted"], 1, io.said)
+        self.assertTrue(any("sign in" in s.lower() for s in io.said))
+        self.assertEqual(payload["fn"], "Test")
+        self.assertEqual(payload["ctry"], "India")                # Select One dropdown
+        self.assertEqual(payload["src"], "LinkedIn")              # selectinput picker
+        self.assertEqual(payload["auth"], "Yes")
+        self.assertEqual(payload["sp"], "No")                     # India: no sponsorship needed
+        self.assertEqual(payload["np"], "30 days")
+        self.assertEqual(payload["ctc"], "INR 50 LPA")
+        self.assertEqual(payload["gen"], "I do not wish to self-identify")
+        self.assertEqual(payload["resume"], "cv.pdf")
+
     def test_captcha_challenge_is_detected(self):
         page = self.browser.new_page()
         page.set_content('<iframe src="about:blank#recaptcha/api2/bframe" title="recaptcha challenge" '
@@ -176,7 +210,7 @@ class Rules(unittest.TestCase):
         self.assertEqual(detect("https://job-boards.greenhouse.io/acme/jobs/1").name, "greenhouse")
         self.assertEqual(detect("https://jobs.lever.co/acme/1").name, "lever")
         self.assertEqual(detect("https://www.linkedin.com/jobs/view/123").name, "linkedin")
-        self.assertIsNone(detect("https://acme.wd5.myworkdayjobs.com/x/job/1"))   # Workday stays manual
+        self.assertEqual(detect("https://acme.wd5.myworkdayjobs.com/x/job/1").name, "workday")
         self.assertIsNone(detect("https://evil-lever.co/acme/1"))
         self.assertEqual(SITES["lever"].apply_url("https://jobs.lever.co/a/1"), "https://jobs.lever.co/a/1/apply")
 

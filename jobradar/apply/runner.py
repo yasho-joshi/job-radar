@@ -25,7 +25,7 @@ from ..config import DATA, ROOT
 from ..dedup import canonical_url
 from .answers import AnswerBank, choose_for
 from .fields import Field, discover, fill
-from .sites import SITES, Site, blocked_reason, detect, page_says
+from .sites import SITES, Site, blocked_reason, detect, needs_sign_in, page_says
 
 STATE = DATA / "apply_state.json"
 TRACKER = DATA / "tracker.csv"
@@ -258,6 +258,96 @@ def wait_for_user_on_block(page, io: Console, reason: str) -> bool:
     return v.lower() != "skip" and blocked_reason(page) is None
 
 
+# ---------------------------------------------------------------- Workday
+WD_NEXT = ('[data-automation-id="pageFooterNextButton"], [data-automation-id="bottom-navigation-next-button"], '
+           '[data-automation-id="nextButton"]')
+WD_ERRORS_JS = r"""
+() => [...document.querySelectorAll('[data-automation-id="errorMessage"], [data-automation-id="errorBanner"], '
+  + '[data-automation-id*="error" i] [role="alert"], [role="alert"]')]
+  .filter(e => e.getBoundingClientRect().width > 0).map(e => e.innerText.trim()).filter(Boolean).slice(0, 8)
+"""
+
+
+def wd_click(page, automation_id: str, text_re: str | None = None) -> bool:
+    loc = page.locator(f'[data-automation-id="{automation_id}"]')
+    if loc.count() and loc.first.is_visible():
+        loc.first.click()
+        return True
+    return bool(text_re) and click_button(page, text_re)
+
+
+def wd_step(page) -> str:
+    loc = page.locator('[data-automation-id="progressBarActiveStep"]')
+    try:
+        return " ".join(loc.first.inner_text(timeout=3000).split()) if loc.count() else ""
+    except Exception:
+        return ""
+
+
+def workday_flow(page, item: QueueItem, bank: AnswerBank, io: Console, log: list) -> str:
+    """Start the application, wait for the user to sign in, then fill each step up to Review.
+
+    Returns 'review' when the Review step is reached, else 'skipped' / 'failed: ...'.
+    The user signs in or creates their account themselves; job-radar never types a password.
+    """
+    if not wd_click(page, "adventureButton", r"^apply$"):
+        return "failed: Apply button not found on the Workday posting"
+    page.wait_for_timeout(1500)
+    # Start options: autofill from the tailored resume when we have one, else apply manually.
+    if not (item.files.get("resume") and wd_click(page, "autofillWithResume")):
+        wd_click(page, "applyManually")
+    page.wait_for_timeout(2500)
+
+    for _ in range(3):                                            # sign-in handoff
+        if not needs_sign_in(page):
+            break
+        io.say("\n   Workday wants you signed in. Sign in or create your account in the browser window yourself"
+               " (job-radar never types passwords). Your session is kept for later Workday jobs.")
+        if io.ask("   Press Enter once you see the first application step (or type 'skip'): ").lower() == "skip":
+            return "skipped"
+        page.wait_for_timeout(1500)
+    else:
+        return "failed: still on the Workday sign-in page"
+
+    uploaded = False
+    for _ in range(10):
+        step = wd_step(page)
+        io.say(f"   Workday step: {step or '(unnamed)'}")
+        if re.search(r"\breview\b", step, re.I) or page.locator('[data-automation-id="pageFooterSubmitButton"]:visible').count():
+            return "review"
+        if not uploaded and item.files.get("resume"):
+            files = page.locator('[data-automation-id="file-upload-input-ref"], input[type=file]')
+            if files.count():
+                files.first.set_input_files(item.files["resume"])
+                uploaded = True
+                log.append({"question": "Resume upload", "answer": Path(item.files["resume"]).name,
+                            "source": "tailored CV", "required": True})
+                page.wait_for_timeout(4000)                       # Workday parses the resume into later steps
+        step_log, ok = fill_page(page, item, bank, io)
+        log += step_log
+        if not ok:
+            return "skipped"
+        for attempt in range(3):
+            clicked = page.locator(WD_NEXT)
+            if clicked.count() and clicked.first.is_visible():
+                clicked.first.click()
+            elif not click_button(page, item.site.next_re):
+                return f"failed: no Next button on Workday step '{step}'"
+            page.wait_for_timeout(2500)
+            errors = page.evaluate(WD_ERRORS_JS)
+            if not errors and wd_step(page) != step:
+                break
+            if not errors:
+                break                                             # same step label but no errors: move on
+            io.say("   Workday flagged: " + " | ".join(errors))
+            if io.ask("   Fix these in the browser window, then press Enter (or type 'skip'): ").lower() == "skip":
+                return "skipped"
+        reason = blocked_reason(page)
+        if reason and not wait_for_user_on_block(page, io, reason):
+            return f"failed: {reason}"
+    return "failed: Workday had more steps than expected"
+
+
 # ---------------------------------------------------------------- one job
 def apply_one(page, item: QueueItem, bank: AnswerBank, io: Console, review: bool) -> str:
     """Returns 'submitted', 'skipped', 'quit', or 'failed: ...'."""
@@ -273,7 +363,11 @@ def apply_one(page, item: QueueItem, bank: AnswerBank, io: Console, review: bool
         return "failed: posting is closed"
 
     log: list[dict] = []
-    if site.name == "linkedin":
+    if site.name == "workday":
+        result = workday_flow(page, item, bank, io, log)
+        if result != "review":
+            return result
+    elif site.name == "linkedin":
         if not click_button(page, r"^easy apply"):
             return "failed: no Easy Apply button (external application; apply on the company site)"
         page.wait_for_timeout(1500)

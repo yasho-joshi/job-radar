@@ -94,10 +94,27 @@ DISCOVER_JS = r"""
     // "Autofill from resume" uploads parse a CV to prefill the form; the real resume field is separate.
     if (type === 'file' && /autofill/i.test((el.closest('div') || el).innerText || '')) return;
     const jr = String(n++); el.setAttribute('data-jr', jr);
-    const f = {jr, kind: type, label: labelOf(el), name: el.name || el.id || '', required, options: [],
+    // Workday "selectinput" pickers (e.g. How did you hear about us?) behave like searchable comboboxes.
+    const isPicker = el.getAttribute('data-uxi-widget-type') === 'selectinput' || /searchBox/i.test(el.getAttribute('data-automation-id') || '');
+    const f = {jr, kind: isPicker ? 'combobox' : type, label: labelOf(el), name: el.name || el.id || '', required, options: [],
                value: (el.value || '').slice(0, 200)};
     if (type === 'select') f.options = [...el.options].map(o => clean(o.text)).filter(t => t && !/^select|^choose|^--/i.test(t));
+    if (isPicker) {   // a picker that already shows a chosen item counts as filled
+      const box = el.closest('[data-automation-id="multiselectInputContainer"]') || el.parentElement;
+      const chosen = box && box.querySelector('[data-automation-id="selectedItem"], [data-automation-id*="selectedItem"]');
+      if (chosen) f.value = clean(chosen.innerText);
+    }
     out.push(f);
+  });
+  // Dropdowns rendered as buttons that open a listbox (Workday): value is the button text.
+  root.querySelectorAll('button[aria-haspopup="listbox"]').forEach(b => {
+    if (!shown(b) || b.hasAttribute('data-jr')) return;
+    const jr = String(n++); b.setAttribute('data-jr', jr);
+    const txt = clean(b.innerText);
+    const label = labelOf(b);
+    out.push({jr, kind: 'dropdown', label, name: b.name || b.id || '', options: [],
+              required: b.getAttribute('aria-required') === 'true' || /[✱*]\s*$/.test(label) || !!b.closest('[aria-required="true"], [required]'),
+              value: /^(select one|select|choose|--)/i.test(txt) ? '' : txt});
   });
   // Yes/No answers rendered as buttons (Ashby): group by their question block.
   root.querySelectorAll('button').forEach(b => {
@@ -195,6 +212,8 @@ def fill(page, f: Field, value: str, root: str = "") -> bool:
             return False
         page.select_option(sel, label=target)
         return True
+    if f.kind == "dropdown":
+        return _fill_dropdown(page, sel, value)
     if f.kind == "combobox" or (f.kind == "text" and _looks_like_combobox(page, sel)):
         return _fill_combobox(page, sel, value)
     page.fill(sel, value)
@@ -206,16 +225,40 @@ def _looks_like_combobox(page, sel: str) -> bool:
                                            "!!e.closest('[class*=select__control], [class*=combobox]')"))
 
 
-def _fill_combobox(page, sel: str, value: str) -> bool:
-    """React-select style dropdowns (new Greenhouse): type, then click the matching option."""
-    page.click(sel)
-    page.fill(sel, value)
-    page.wait_for_timeout(600)
-    opts = page.locator('[role="option"]')
-    texts = [t.strip() for t in opts.all_inner_texts()]
-    idx = pick_option(texts, value)
+OPTION_SEL = '[role="option"]:visible, [data-automation-id="promptOption"]:visible'
+
+
+DECLINE_TOKEN = "__decline__"     # "pick the decline-to-self-identify option, whatever it is called"
+DECLINE_RE = re.compile(r"decline|prefer not|do not wish|don.?t wish|not to (say|disclose|answer)|rather not", re.I)
+
+
+def _choose_visible_option(page, value: str) -> bool:
+    opts = page.locator(OPTION_SEL)
+    texts = [" ".join(t.split()) for t in opts.all_inner_texts()]
+    if value == DECLINE_TOKEN:
+        idx = next((i for i, t in enumerate(texts) if DECLINE_RE.search(t)), None)
+    else:
+        idx = pick_option(texts, value)
     if idx is None:
         page.keyboard.press("Escape")
         return False
     opts.nth(idx).click()
     return True
+
+
+def _fill_dropdown(page, sel: str, value: str) -> bool:
+    """Button that opens a listbox (Workday 'Select One'): open it, click the matching option."""
+    page.click(sel)
+    page.wait_for_timeout(500)
+    return _choose_visible_option(page, value)
+
+
+def _fill_combobox(page, sel: str, value: str) -> bool:
+    """Searchable dropdowns (react-select on Greenhouse, Workday pickers): type, then click the match."""
+    page.click(sel)
+    page.fill(sel, value)
+    page.wait_for_timeout(600)
+    if page.locator(OPTION_SEL).count() == 0:
+        page.keyboard.press("Enter")          # Workday pickers search on Enter
+        page.wait_for_timeout(800)
+    return _choose_visible_option(page, value)

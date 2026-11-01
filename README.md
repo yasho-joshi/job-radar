@@ -12,7 +12,7 @@ review yourself. Local-first, runs inside an AI coding agent (Claude Code, Codex
 | **Rank** | Scores each posting against your profile: skills, experience, culture, career fit, location and language gates |
 | **Tailor** | Fit check, then a CV and cover letter built only from your profile, a reviewer pass that audits every fact, LaTeX compile, page/layout/ATS checks |
 | **Outreach** | Finds the best contact who invited contact (post author, named recruiter, published address), drafts the message, and builds a page with Copy, Open in Gmail and Open on LinkedIn buttons |
-| **Auto-apply** | Playwright fills and submits Greenhouse, Lever, Ashby and LinkedIn Easy Apply forms. The first job on each site is a supervised sample you approve in the terminal; then you choose automatic for the rest, one more manual, or stop |
+| **Auto-apply** | Playwright fills and submits Greenhouse, Lever, Ashby, Workday and LinkedIn Easy Apply forms (on Workday you sign in yourself when it asks). The first job on each site is a supervised sample you approve in the terminal; then you choose automatic for the rest, one more manual, or stop |
 | **Track** | Applications, outcomes, polite follow-ups (max two) |
 
 ## Ground rules
@@ -81,7 +81,7 @@ py -m jobradar apply status       # which sites are automatic (approval lasts 7 
 Safeguards: answers only from your answer file, answers you give during the run, or per-job answers you approved
 (never guessed); demographic questions get "decline to self-identify" by default; at most 10 submissions a run
 (LinkedIn 5) with pauses between jobs; pauses on any CAPTCHA or login wall and never solves them; never creates
-accounts (Workday stays manual); a screenshot and the answers used are saved for every submission.
+accounts or types passwords (on Workday it pauses so you sign in yourself); a screenshot and the answers used are saved for every submission.
 LinkedIn Easy Apply automation breaches LinkedIn's terms and can get your account restricted; it is opt-in by site.
 
 The Python tools also work on their own:

@@ -102,6 +102,9 @@ class AnswerBank:
                 idx = next((i for i, o in enumerate(f.options) if DECLINE.search(normalize_label(o))), None)
                 if idx is not None:
                     return Answer(f.options[idx], "demographic: decline to self-identify")
+                if f.kind == "dropdown" and not f.options:     # options appear only when opened
+                    from .fields import DECLINE_TOKEN
+                    return Answer(DECLINE_TOKEN, "demographic: decline to self-identify")
             if not f.required:
                 return Answer("", "demographic, optional: left blank")
 
@@ -180,6 +183,8 @@ def choose_for(f: Field, ans: Answer) -> str | None:
     """For option-type fields, map the answer onto an actual option; None if it doesn't fit."""
     if ans.value is None:
         return None
+    if f.kind in ("dropdown", "combobox") and not f.options:
+        return ans.value          # options only appear once the list is opened; fill() matches them then
     if f.kind in ("radio", "checkbox", "yesno", "select") and f.options:
         idx = pick_option(f.options, ans.value)
         return f.options[idx] if idx is not None else None

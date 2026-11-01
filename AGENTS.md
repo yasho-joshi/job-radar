@@ -27,11 +27,11 @@ and PDF checks. You (the agent) read these rules before every workflow.
    (browser mode) is opt-in, read-only, capped at a few pages per run, and the user is told it breaches LinkedIn's
    terms and can get an account restricted. Stop on any CAPTCHA, login wall or rate limit; never bypass them.
 6. **Auto-apply is the user's decision, site by site.** `py -m jobradar apply run` (Playwright) submits applications
-   on Greenhouse, Lever, Ashby and LinkedIn Easy Apply. The user starts it in their own terminal and answers its
+   on Greenhouse, Lever, Ashby, Workday and LinkedIn Easy Apply. On Workday the runner pauses at the sign-in page and the user signs in or creates their account themselves. The user starts it in their own terminal and answers its
    prompts; you prepare (queue, read-only `prep`, drafted job answers they approved) but never answer its prompts
    for them. The first job on each site is a reviewed sample; automatic mode only follows the user's explicit
-   approval in that run, lasts 7 days, and keeps its caps (10 a run, LinkedIn 5), pauses for unknown questions,
-   never solves a CAPTCHA, never logs in, never creates accounts, never types or stores a password (the user's
+   approval in that run, lasts 7 days, and keeps its caps (10 a run, LinkedIn and Workday 5), pauses for unknown questions,
+   never solves a CAPTCHA, never logs in or creates accounts for the user (it waits while they do it themselves), never types or stores a password (the user's
    `apply_email` in `profile/preferences.toml` is the only account detail job-radar keeps), and only uses tailored CVs for Strong/Good fit
    jobs. Answers come from `profile/answers.toml`, answers the user gave, or job answers they approved: never guesses.
    LinkedIn Easy Apply automation breaches LinkedIn's terms and can get the account restricted; the user chose it
