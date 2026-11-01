@@ -1,0 +1,12 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Senior Product Manager @ Testco</title><script src="_done.js"></script></head><body>
+<form onsubmit="return jrSubmit(event, 'Thanks for applying! Your application was submitted.')">
+<div><label for="_systemfield_name">Full Name</label><input id="_systemfield_name" name="_systemfield_name" required></div>
+<div><label for="_systemfield_email">Email</label><input id="_systemfield_email" name="_systemfield_email" type="email" required></div>
+<div><label for="_systemfield_resume">Resume</label><input id="_systemfield_resume" type="file" required></div>
+<div class="q"><label>Are you willing to relocate?</label>
+  <div class="yn"><button type="button" onclick="document.getElementById('reloc').value='Yes'">Yes</button><button type="button" onclick="document.getElementById('reloc').value='No'">No</button></div>
+  <input type="hidden" id="reloc" name="relocate"></div>
+<fieldset><legend>What is your race?</legend>
+  <label><input type="radio" name="race" value="Asian">Asian</label>
+  <label><input type="radio" name="race" value="Decline">Decline to self-identify</label></fieldset>
+<button type="submit">Submit Application</button><p id="err"></p></form></body></html>

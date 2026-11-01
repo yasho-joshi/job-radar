@@ -1,0 +1,11 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Senior Product Manager | Testco | LinkedIn</title><script src="_done.js"></script></head><body>
+<h1>Senior Product Manager</h1><button id="ea" onclick="document.getElementById('dlg').style.display='block'">Easy Apply</button>
+<div id="dlg" role="dialog" style="display:none"><form onsubmit="return jrSubmit(event, 'Your application was sent to Testco!')">
+ <div id="s1"><label for="ph">Mobile phone number</label><input id="ph" name="phone" required>
+   <button type="button" onclick="if(document.getElementById('ph').value){s1.style.display='none';s2.style.display='block'}">Next</button></div>
+ <div id="s2" style="display:none"><label for="up">Upload resume</label><input id="up" type="file" name="resume" required>
+   <fieldset><legend>Are you comfortable working in a hybrid setting?</legend>
+   <label><input type="radio" name="hybrid" value="Yes" required>Yes</label><label><input type="radio" name="hybrid" value="No">No</label></fieldset>
+   <button type="button" onclick="s2.style.display='none';s3.style.display='block'">Review</button></div>
+ <div id="s3" style="display:none"><p>Review your application</p><button type="submit">Submit application</button></div>
+ <p id="err"></p></form></div></body></html>

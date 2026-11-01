@@ -1,0 +1,46 @@
+# Copy to profile/answers.toml (gitignored). Every answer here is sent to employers, so keep it true.
+# Anything left empty is asked once during a run and remembered in profile/answers_learned.json.
+
+[identity]
+first_name = ""
+last_name = ""
+full_name = ""
+email = ""
+phone = ""                 # with country code, e.g. +91 98765 43210
+country = "India"
+city = "Bengaluru"
+location = "Bengaluru, Karnataka, India"
+current_company = ""
+current_title = ""
+linkedin = ""
+github = ""
+portfolio = ""
+years_experience = ""      # total professional years, e.g. "14"
+
+[work_rights]
+# Countries where you can work without sponsorship. Used for "Are you authorized to work in X?"
+# and "Will you require sponsorship?" questions, judged per country named in the question.
+authorized_countries = ["India"]
+
+[standard]
+notice_period = ""          # e.g. "60 days"
+expected_salary = ""        # e.g. "INR 55 LPA"; leave empty to be asked per job
+current_salary = ""         # leave empty to be asked (many people prefer not to share)
+willing_to_relocate = ""    # "Yes" / "No" / leave empty to be asked per job
+earliest_start = ""         # e.g. "After a 60-day notice period"
+hear_about = "LinkedIn"     # "How did you hear about this job?"
+
+[eeo]
+# Demographic questions (gender, race, veteran, disability, pronouns, orientation).
+# "decline" picks "Decline to self-identify" / "Prefer not to say" when offered; "ask" asks you.
+policy = "decline"
+
+[consent]
+# Many forms need you to accept the company's privacy notice to apply at all.
+# false = ask me the first time for each site; true = tick it.
+accept_privacy_policy = false
+
+# Your own rules: a regular expression matched against the lower-cased question, and the answer.
+# [[rules]]
+# pattern = "notice period"
+# answer = "60 days"

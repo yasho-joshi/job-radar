@@ -1,0 +1,13 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Testco - Senior Product Manager</title><script src="_done.js"></script></head><body>
+<form onsubmit="return jrSubmit(event, 'Application submitted! Thanks for applying.')"><ul>
+<li><div class="application-label">Resume/CV ✱</div><input type="file" name="resume" required></li>
+<li><div class="application-label">Full name ✱</div><input name="name" required></li>
+<li><div class="application-label">Email ✱</div><input type="email" name="email" required></li>
+<li><div class="application-label">Phone ✱</div><input name="phone" required></li>
+<li><div class="application-label">Current company ✱</div><input name="org" required></li>
+<li><div class="application-label">LinkedIn URL ✱</div><input name="urls[LinkedIn]" required></li>
+<li class="application-question"><div class="application-label"><div class="text">What is your notice period? ✱</div></div>
+  <input name="cards[abc][field0]" required></li>
+<li class="application-question"><div class="application-label"><div class="text">Tell us about a key metric you owned ✱</div></div>
+  <textarea name="cards[abc][field1]" required></textarea></li>
+</ul><button type="submit">SUBMIT APPLICATION</button><p id="err"></p></form></body></html>
