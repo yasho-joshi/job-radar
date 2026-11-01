@@ -1,0 +1,43 @@
+{
+  "name": "Priya Raman",
+  "headline": ["Senior Product Manager", "Payments · Marketplaces · AI"],
+  "contact": {"phone": "+91 90000 12345", "email": "priya.raman@example.com", "location": "Pune, India", "linkedin": "linkedin.com/in/priya-raman-example"},
+  "summary": "Product manager with 11 years across marketplaces, payments and data. Owns the checkout roadmap for Northwind Market, a fictional marketplace with 4M monthly buyers, and previously led merchant onboarding at Bluefin Pay. Works closely with engineering, risk and operations, decides with experiments, and uses AI to speed up discovery.",
+  "metrics": [
+    {"value": "+18%", "label": "checkout conversion, Northwind"},
+    {"value": "-35%", "label": "merchant onboarding time"},
+    {"value": "$12M", "label": "fraud losses avoided"},
+    {"value": "3x", "label": "support self-resolution"}
+  ],
+  "experience": [
+    {"company": "Northwind Market", "location": "Pune", "title": "Senior Product Manager, Checkout", "dates": "Mar 2022 - Present",
+     "context": "Fictional marketplace used for this sample: 4M monthly buyers, 60k sellers.",
+     "bullets": [
+       {"lead": "Checkout conversion", "x": "Buyers abandoned checkout when their saved card failed", "y": "launched UPI and wallet fallback with one-tap retry", "z": "lifting checkout conversion 18% in two quarters"},
+       {"lead": "Fraud controls", "x": "Card-testing attacks were slipping past static rules", "y": "shipped velocity checks and a manual-review queue with risk ops", "z": "avoiding an estimated $12M in fraud losses a year"},
+       {"lead": "AI support", "x": "Order-status questions made up 40% of support tickets", "y": "defined an LLM help assistant grounded in order data with human handoff", "z": "tripling self-resolution and cutting tickets 22%"},
+       {"lead": "Roadmap", "x": "Five teams competed for the same checkout surface", "y": "set up a shared quarterly roadmap and acceptance criteria", "z": "shipping 14 releases with zero rollback"}
+     ]},
+    {"company": "Bluefin Pay", "location": "Bengaluru", "title": "Product Manager, Merchant Onboarding", "dates": "Jun 2018 - Feb 2022",
+     "context": "Fictional payment gateway used for this sample.",
+     "bullets": [
+       {"lead": "Onboarding", "x": "New merchants waited nine days for KYC approval", "y": "automated document checks and added a status tracker", "z": "cutting onboarding time 35%"},
+       {"lead": "Pricing", "x": "Small merchants churned over unclear fees", "y": "introduced flat-rate pricing with a fee calculator", "z": "reducing first-year churn 11%"},
+       {"lead": "Experimentation", "x": "Activation emails had a 6% open rate", "y": "ran A/B tests on timing and content", "z": "doubling activation within 30 days"}
+     ]},
+    {"company": "Acme Analytics", "location": "Bengaluru", "title": "Business Analyst", "dates": "Jul 2014 - May 2018",
+     "bullets": [
+       {"x": "Weekly sales reports took two days to compile", "y": "automated them in SQL and Tableau", "z": "freeing 12 analyst hours a week"}
+     ]}
+  ],
+  "skills": [
+    {"group": "Product", "items": ["Roadmaps & prioritization", "Discovery & user research", "PRDs & acceptance criteria", "A/B testing"]},
+    {"group": "Domain", "items": ["Checkout & payments", "Fraud & risk", "Merchant onboarding & KYC", "Marketplaces"]},
+    {"group": "AI & Data", "items": ["LLM assistants", "SQL", "Tableau", "Amplitude"]}
+  ],
+  "education": [
+    {"degree": "MBA", "school": "Example Institute of Management", "dates": "2014"},
+    {"degree": "B.Tech, Computer Science", "school": "Sample University", "dates": "2010"}
+  ],
+  "extras": [{"title": "Languages", "items": ["English (fluent)", "Hindi (native)", "Marathi (conversational)"]}]
+}

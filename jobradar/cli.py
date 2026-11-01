@@ -191,6 +191,26 @@ def cmd_apply(a) -> int:
     return 1
 
 
+def cmd_resume(a) -> int:
+    from . import resume
+    from .config import ROOT
+    if a.samples:
+        data = resume.load(ROOT / "config" / "resume_sample.json")
+        out = ROOT / "config" / "resume_samples"
+        for fmt in resume.FORMATS:
+            n = resume.render_pdf(data, fmt, out / f"sample_{fmt}.pdf", out / f"sample_{fmt}.png")
+            print(f"{fmt:15} {n} page(s) -> {out / f'sample_{fmt}.pdf'}")
+        return 0
+    if not (a.data and a.out):
+        print("give --data <resume.json> --out <file.pdf> (or --samples)")
+        return 1
+    fmt = a.format or "plain"
+    n = resume.render_pdf(resume.load(a.data), fmt, a.out, a.png)
+    lo, hi = resume.PAGES[fmt]
+    print(f"{fmt}: {n} page(s) -> {a.out}" + ("" if lo <= n <= hi else f"  ! expected {lo}-{hi} pages"))
+    return 0 if lo <= n <= hi else 1
+
+
 def canonical(url: str) -> str:
     from .dedup import canonical_url
     return canonical_url(url)
@@ -237,6 +257,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--job", help="a single job URL")
     ap.add_argument("--company"); ap.add_argument("--role")
     ap.set_defaults(fn=cmd_apply)
+
+    rs = sub.add_parser("resume", help="render a resume (plain | sidebar | sidebar_metric) from a JSON data file")
+    rs.add_argument("--data"); rs.add_argument("--out"); rs.add_argument("--png")
+    rs.add_argument("--format", choices=["plain", "sidebar", "sidebar_metric"])
+    rs.add_argument("--samples", action="store_true", help="render the three formats with made-up sample data")
+    rs.set_defaults(fn=cmd_resume)
 
     a = p.parse_args(argv)
     return a.fn(a)

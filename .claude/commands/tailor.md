@@ -16,6 +16,18 @@ requirement-by-requirement table: matched, partial, gap. Recommend apply / apply
 
 ## 3. Draft
 - Sources of truth: `profile/profile.md`, `profile/cv.tex`. Nothing else, not earlier tailored CVs.
+- **Resume format.** Read `profile/preferences.toml`. If `[resume.by_role]` has this role type, ask "Last time you
+  used <format> for <role type> roles. Keep it or change?" If it has none, ask which of plain / sidebar /
+  sidebar_metric to use (offer the previews in `config/resume_samples/`), defaulting to `default_format`. Save the
+  answer under `[resume.by_role]`.
+- **X-Y-Z bullets.** Every experience bullet is `{"lead", "x", "y", "z"}`: X the problem or starting point, Y what
+  the user did, Z the measurable outcome. It renders as one sentence "X: Y, Z." Every part comes from the profile;
+  when the profile gives no problem statement, state the starting point the profile implies (e.g. "Cancellations
+  ran through an RPA bot that succeeded 78% of the time") and never invent one. Keep a bullet's numbers exactly as
+  the profile has them.
+- Write the resume data to `output/resume/<company>_<role>.json` (schema in `jobradar/resume.py`) and render it:
+  `py -m jobradar resume --data output/resume/<company>_<role>.json --format <format> --out output/cv/<file>.pdf --png output/cv/<file>.png`.
+  The LaTeX path below is the alternative when the user prefers the moderncv look.
 - CV: copy `profile/cv.tex` to `output/cv/<company>_<role>.tex`. Rewrite the profile statement and reorder bullets
   for this posting; use the posting's own terms only where the work truly matches (interview backtrack test:
   could the user explain this line without "well, actually..."?). Date ranges use a single ASCII hyphen
@@ -46,4 +58,6 @@ missing (gap). Never stuff a keyword the profile does not support. Delete `.aux 
 
 ## 6. Present
 Pass/fail checklist, key tailoring choices, any "stretch" lines for the user to keep / soften / drop, file paths.
+If the user wants a custom file name for the resume, rename it and record both files in
+`data/applications/<company>_<role>/files.json` as `{"resume": "...", "cover": "..."}` so auto-apply finds them.
 Add a tracker row with status `drafted` (see `/track`). Offer `/outreach` for this job.

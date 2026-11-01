@@ -134,12 +134,7 @@ def build_queue(only_site: str | None = None) -> list[QueueItem]:
         item = QueueItem(company=r.get("company", ""), role=r.get("title", ""), url=r.get("url", ""),
                          site=detect(r.get("url", "")), verdict=r.get("rank_verdict", ""), score=r.get("rank_score"),
                          location=r.get("location") or "")
-        cv = ROOT / "output" / "cv" / f"{item.slug}.pdf"
-        cover = ROOT / "output" / "cover" / f"{item.slug}.pdf"
-        if cv.exists():
-            item.files["resume"] = str(cv)
-        if cover.exists():
-            item.files["cover"] = str(cover)
+        attach_files(item)
         if item.site is None:
             item.skip = "site not supported for auto-apply (apply manually)"
         elif only_site and item.site.name != only_site:
@@ -149,20 +144,35 @@ def build_queue(only_site: str | None = None) -> list[QueueItem]:
         elif (item.verdict or "").lower() not in FIT_OK:
             item.skip = f"fit '{item.verdict or 'unranked'}' (only Strong/Good fit; run /rank)"
         elif "resume" not in item.files:
-            item.skip = f"no tailored CV at output/cv/{item.slug}.pdf (run /tailor)"
+            item.skip = f"no tailored CV (output/cv/{item.slug}.pdf or files.json; run /tailor)"
         out.append(item)
     return out
+
+
+def attach_files(item: QueueItem) -> None:
+    """Find the tailored resume/cover: a files.json manifest (custom file names) first, then the slug names."""
+    manifest = DATA / "applications" / item.slug / "files.json"
+    if manifest.exists():
+        try:
+            m = json.loads(manifest.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            m = {}
+        for k in ("resume", "cover"):
+            p = Path(m.get(k, "")) if m.get(k) else None
+            if p and not p.is_absolute():
+                p = ROOT / p
+            if p and p.exists():
+                item.files[k] = str(p)
+    for k, folder in (("resume", "cv"), ("cover", "cover")):
+        p = ROOT / "output" / folder / f"{item.slug}.pdf"
+        if k not in item.files and p.exists():
+            item.files[k] = str(p)
 
 
 def make_item(url: str, company: str, role: str) -> QueueItem:
     """A one-off job the user names explicitly. Same gates as the queue except the fit band."""
     item = QueueItem(company=company, role=role, url=url, site=detect(url), verdict="(named by you)")
-    cv = ROOT / "output" / "cv" / f"{item.slug}.pdf"
-    cover = ROOT / "output" / "cover" / f"{item.slug}.pdf"
-    if cv.exists():
-        item.files["resume"] = str(cv)
-    if cover.exists():
-        item.files["cover"] = str(cover)
+    attach_files(item)
     if item.site is None:
         item.skip = "site not supported for auto-apply (apply manually)"
     elif not company or not role:
@@ -170,7 +180,7 @@ def make_item(url: str, company: str, role: str) -> QueueItem:
     elif canonical_url(url) in applied_urls():
         item.skip = "already applied"
     elif "resume" not in item.files:
-        item.skip = f"no tailored CV at output/cv/{item.slug}.pdf (run /tailor)"
+        item.skip = f"no tailored CV (output/cv/{item.slug}.pdf or files.json; run /tailor)"
     return item
 
 

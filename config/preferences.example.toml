@@ -1,0 +1,13 @@
+# Copy to profile/preferences.toml (gitignored). /setup fills it in.
+
+# The email address you use to apply for jobs and sign in to job sites.
+# job-radar never stores or types passwords: you sign in yourself, the tool only needs to know the address.
+apply_email = ""
+
+[resume]
+# plain | sidebar | sidebar_metric   (see config/resume_samples/ for what each looks like)
+default_format = "plain"
+
+# Per role type, the format you chose last time. /tailor asks before reusing or changing it.
+# Keys are role types in lower case, e.g. "product owner", "senior product manager".
+[resume.by_role]

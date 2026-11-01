@@ -54,6 +54,18 @@ claude          # then run /setup
 /track Acme applied    record progress; /track followup drafts polite nudges
 ```
 
+### Resume formats
+
+Three formats render from one resume data file, with bullets written as X-Y-Z (problem, solution, outcome):
+**plain** (single column, serif), **sidebar** (navy left column with contact, summary and skills) and
+**sidebar_metric** (dark sidebar plus a strip of four headline numbers). `/setup` shows samples with made-up data
+and saves your default; `/tailor` asks whether to keep or change the format for each role type.
+
+```
+py -m jobradar resume --samples                                    # previews in config/resume_samples/
+py -m jobradar resume --data output/resume/acme_pm.json --format sidebar --out output/cv/acme_pm.pdf
+```
+
 ### Auto-apply
 
 ```

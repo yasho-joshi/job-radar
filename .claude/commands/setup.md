@@ -23,5 +23,15 @@ Suggest one or two adjacent role types the profile supports.
   modes, LinkedIn place strings, place and mode hashtags. For target companies, find their ATS board (search the
   company's careers page; accept only Greenhouse, Lever, Ashby or Workday URLs) and add `[[boards]]` entries.
 
+## 2b. Application email and resume format
+- Ask: "Which email address do you use to apply for jobs and sign in to job sites?" Save it as `apply_email` in
+  `profile/preferences.toml` (from `config/preferences.example.toml`). Never ask for, accept, store or type a
+  password: if the user offers one, say you can't sign in for them, don't save it, and suggest changing it if it was
+  shared in chat. They sign in to job sites themselves.
+- Show the three resume formats with made-up data: run `py -m jobradar resume --samples` and send the user the PNG
+  previews in `config/resume_samples/` (Plain: single column, serif; Sidebar: navy left column with contact,
+  summary and skills; Sidebar with metric: dark sidebar plus a strip of four headline numbers and bold lead-ins).
+  Save their choice as `[resume] default_format`.
+
 ## 3. Confirm
 List the files, remind the user that `profile/`, `data/` and `output/` never enter git, and suggest `/radar`.

@@ -188,3 +188,24 @@ class Sources(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ResumeFormats(unittest.TestCase):
+    def test_xyz_bullet_sentence(self):
+        from jobradar.resume import bullet_text
+        lead, s = bullet_text({"lead": "Automation", "x": "A bot succeeded 78% of the time",
+                               "y": "replaced it with a bulk API", "z": "raising success to 95%"})
+        self.assertEqual(lead, "Automation")
+        self.assertEqual(s, "A bot succeeded 78% of the time: replaced it with a bulk API, raising success to 95%.")
+        self.assertEqual(bullet_text("Plain bullet.")[1], "Plain bullet.")
+
+    def test_all_formats_render_and_escape(self):
+        from jobradar.resume import FORMATS, render_html
+        data = {"name": "A <b>", "summary": "x & y", "contact": {"email": "a@example.com"},
+                "experience": [{"company": "Co", "title": "PM", "dates": "2020-2024",
+                                "bullets": [{"x": "p", "y": "s", "z": "o"}]}],
+                "skills": [{"group": "G", "items": ["i"]}], "education": [], "metrics": [{"value": "1", "label": "l"}]}
+        for fmt in FORMATS:
+            html_out = render_html(data, fmt)
+            self.assertIn("A &lt;b&gt;", html_out)
+            self.assertIn("x &amp; y", html_out)

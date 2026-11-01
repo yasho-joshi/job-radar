@@ -31,7 +31,8 @@ and PDF checks. You (the agent) read these rules before every workflow.
    prompts; you prepare (queue, read-only `prep`, drafted job answers they approved) but never answer its prompts
    for them. The first job on each site is a reviewed sample; automatic mode only follows the user's explicit
    approval in that run, lasts 7 days, and keeps its caps (10 a run, LinkedIn 5), pauses for unknown questions,
-   never solves a CAPTCHA, never logs in, never creates accounts, and only uses tailored CVs for Strong/Good fit
+   never solves a CAPTCHA, never logs in, never creates accounts, never types or stores a password (the user's
+   `apply_email` in `profile/preferences.toml` is the only account detail job-radar keeps), and only uses tailored CVs for Strong/Good fit
    jobs. Answers come from `profile/answers.toml`, answers the user gave, or job answers they approved: never guesses.
    LinkedIn Easy Apply automation breaches LinkedIn's terms and can get the account restricted; the user chose it
    knowing that, and it stays slow and capped.
