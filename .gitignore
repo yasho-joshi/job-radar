@@ -1,0 +1,18 @@
+# Personal data: never commit
+profile/
+data/
+output/
+*.env
+.env*
+
+# Build and tool artifacts
+__pycache__/
+*.pyc
+node_modules/
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+templates/**/*.pdf

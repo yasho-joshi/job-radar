@@ -1,0 +1,30 @@
+[
+  {
+    "company": "Example Payments",
+    "role": "Senior Product Manager",
+    "job_url": "https://jobs.lever.co/example/123",
+    "contact": {
+      "name": "Jane Example",
+      "title": "Talent Partner",
+      "source": "post author (#hiring post)",
+      "linkedin_url": "https://www.linkedin.com/in/jane-example/"
+    },
+    "channel": "linkedin_note",
+    "subject": "",
+    "body": "Hi Jane, I saw your #hiring post for a Senior PM. I led checkout payments and BNPL launches for five years and now own a commerce platform roadmap. Would you be open to a quick chat about the role?"
+  },
+  {
+    "company": "Example Payments",
+    "role": "Senior Product Manager",
+    "job_url": "https://jobs.lever.co/example/123",
+    "contact": {
+      "name": "Hiring team",
+      "title": "Recruiting",
+      "source": "address printed on the posting",
+      "email": "careers@example.com"
+    },
+    "channel": "email",
+    "subject": "Senior Product Manager application: payments and checkout background",
+    "body": "Hello,\n\nI applied today for the Senior Product Manager role. I spent five years owning checkout payments and bank-partner integrations, and I currently own the roadmap for a global commerce platform.\n\nIf useful, I would be glad to walk through how that maps to your payments roadmap.\n\nKind regards,\nYour Name\n+00 0000 000000 | linkedin.com/in/your-profile"
+  }
+]

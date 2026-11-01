@@ -1,0 +1,55 @@
+# Copy to profile/search.toml and edit. profile/ is gitignored, so your copy stays private.
+# /setup fills this in from your profile.
+
+[search]
+# Job titles to look for. Function first, then the many titles it hides behind.
+roles = ["Product Owner", "Technical Product Manager", "Senior Product Manager"]
+# Titles containing any of these words are dropped.
+exclude_titles = ["intern", "associate product manager", "junior"]
+# Places you accept. A job matches if its location mentions any of these...
+locations = ["Bengaluru", "Bangalore", "Karnataka"]
+# ...or if its work mode is in remote_ok (e.g. remote roles that hire from anywhere).
+work_modes = ["remote", "hybrid", "onsite"]
+remote_ok = true
+# Extra countries/regions to accept (e.g. for visa-sponsored roles). Matching only, not a promise of sponsorship.
+also_accept = ["Germany", "Netherlands", "Ireland", "United Kingdom"]
+max_age_days = 14          # LinkedIn jobs and posts
+ats_max_age_days = 60      # company ATS boards list only open roles; their date is when the posting was created
+
+[linkedin]
+# LinkedIn place strings for the public job search CLI.
+locations = ["Bengaluru, Karnataka, India", "Remote"]
+jobage_days = 14
+limit_per_query = 20
+
+[feeds]
+# Location / mode hashtags used in #hiring post searches.
+place_hashtags = ["#bengaluru", "#bangalore", "#india"]
+mode_hashtags = ["#remote", "#hybrid"]
+extra_hashtags = []           # e.g. ["#fintech", "#saas"]
+max_age_days = 14
+
+# Companies to watch directly through their public ATS boards.
+# Find a slug from the careers URL: boards.greenhouse.io/<slug>, jobs.lever.co/<slug>,
+# jobs.ashbyhq.com/<slug>, or the full <tenant>.wd<N>.myworkdayjobs.com/<site> URL for Workday.
+# `python -m jobradar discover` turns search results into entries like these.
+
+[[boards]]
+source = "greenhouse"
+slug = "stripe"
+name = "Stripe"
+
+[[boards]]
+source = "lever"
+slug = "palantir"
+name = "Palantir"
+
+[[boards]]
+source = "ashby"
+slug = "notion"
+name = "Notion"
+
+[[boards]]
+source = "workday"
+careers_url = "https://adobe.wd5.myworkdayjobs.com/external_experienced"
+name = "Adobe"
