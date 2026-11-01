@@ -290,16 +290,28 @@ def workday_flow(page, item: QueueItem, bank: AnswerBank, io: Console, log: list
     Returns 'review' when the Review step is reached, else 'skipped' / 'failed: ...'.
     The user signs in or creates their account themselves; job-radar never types a password.
     """
-    if not wd_click(page, "adventureButton", r"^apply$"):
+    def wait_for(selector: str, ms: int = 20000) -> bool:
+        try:                                   # Workday renders client-side, well after DOMContentLoaded
+            page.wait_for_selector(selector, state="visible", timeout=ms)
+            return True
+        except Exception:
+            return False
+
+    if wait_for('[data-automation-id="adventureButton"]'):
+        wd_click(page, "adventureButton")
+    elif not click_button(page, r"^apply$"):
         return "failed: Apply button not found on the Workday posting"
-    page.wait_for_timeout(1500)
     # Start options: autofill from the tailored resume when we have one, else apply manually.
+    wait_for('[data-automation-id="autofillWithResume"], [data-automation-id="applyManually"]', 10000)
     if not (item.files.get("resume") and wd_click(page, "autofillWithResume")):
         wd_click(page, "applyManually")
-    page.wait_for_timeout(2500)
+    wait_for('[data-automation-id="signInContent"], [data-automation-id="progressBar"], input[type=password]')
 
-    for _ in range(3):                                            # sign-in handoff
-        if not needs_sign_in(page):
+    def signin_step() -> bool:
+        return needs_sign_in(page) or bool(re.search(r"sign in|create account", wd_step(page), re.I))
+
+    for _ in range(5):                                            # sign-in handoff
+        if not signin_step():
             break
         io.say("\n   Workday wants you signed in. Sign in or create your account in the browser window yourself"
                " (job-radar never types passwords). Your session is kept for later Workday jobs.")
