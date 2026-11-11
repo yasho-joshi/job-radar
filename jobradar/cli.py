@@ -13,6 +13,7 @@ from .config import DATA, load
 from .dedup import SeenStore
 from .models import Job
 from .sources import REGISTRY, workday
+from .state import ScanState, board_key, now_utc, posted_since
 
 
 def _jobs_out(jobs: list[Job], path: Path) -> None:
@@ -25,7 +26,10 @@ def _summary(jobs: list[Job]) -> None:
         print(f"  [{j.source:10}] {j.title} | {j.company} | {j.location or '?'} | {j.work_mode or '?'} | {j.posted or 'date ?'}")
 
 
-def fetch_boards(boards: list[dict], cfg: dict) -> tuple[list[Job], list[str]]:
+def fetch_boards(boards: list[dict], cfg: dict, state: ScanState | None = None,
+                 ok: list[str] | None = None) -> tuple[list[Job], list[str]]:
+    """Fetch boards. With a ScanState, postings dated before a board's last successful run are
+    dropped (incremental); keys of boards fetched without error are appended to `ok`."""
     jobs, errors = [], []
     roles = cfg["search"].get("roles", [])
     for b in boards:
@@ -34,14 +38,19 @@ def fetch_boards(boards: list[dict], cfg: dict) -> tuple[list[Job], list[str]]:
             errors.append(f"unknown source in board: {b}")
             continue
         try:
+            got = []
             if b["source"] == "workday":
                 # Workday's search box is a plain keyword search, so run one search per role.
                 for role in roles or [""]:
-                    jobs += mod.fetch(b, role)
+                    got += mod.fetch(b, role)
             else:
-                jobs += mod.fetch(b)   # these APIs return the whole board; filters do the matching
+                got += mod.fetch(b)    # these APIs return the whole board; filters do the matching
+            since = state.since(board_key(b)) if state else None
+            jobs += [j for j in got if posted_since(j.posted, since)]
             if b.get("_partial"):
                 errors.append(f"{b['source']} {b.get('slug')}: partial board, {b.pop('_partial')}")
+            elif ok is not None:
+                ok.append(board_key(b))  # a partial board keeps its old watermark so nothing is skipped
         except Exception as e:
             errors.append(f"{b.get('source')} {b.get('slug') or b.get('careers_url')}: {e}")
     return jobs, errors
@@ -49,30 +58,41 @@ def fetch_boards(boards: list[dict], cfg: dict) -> tuple[list[Job], list[str]]:
 
 def cmd_scan(a) -> int:
     cfg = load(a.config)
+    started = now_utc()
+    state = ScanState(DATA / "scan_state.json") if a.incremental else None
+    ok: list[str] = []
     all_jobs, errors = [], []
     if not a.no_boards:
-        got, err = fetch_boards(cfg["boards"], cfg)
+        got, err = fetch_boards(cfg["boards"], cfg, state, ok)
         all_jobs += got
         errors += err
     if a.linkedin:
-        got, err = linkedin.search_all(cfg)
+        got, err = linkedin.search_all(cfg, state=state, ok=ok)
         all_jobs += got
         errors += err
-    titled = filters.by_title(all_jobs, cfg)
-    errors += workday.fetch_details(titled)       # real locations for "2 Locations" rows
-    matched = filters.apply(titled, cfg)
     store = SeenStore(DATA / "seen.jsonl")
+    titled = filters.by_title(all_jobs, cfg)
+    unseen = [j for j in titled if not store.has(j)]  # never re-fetch details for jobs already processed
+    errors += workday.fetch_details(unseen)           # real locations for "2 Locations" rows
+    matched = filters.apply(unseen, cfg)
     new, dupes = store.split(matched)
-    out = Path(a.out or DATA / "runs" / f"{date.today().isoformat()}-scan.json")
-    _jobs_out(new, out)
+    stamp = started.astimezone().strftime("%Y-%m-%dT%H%M") if a.incremental else date.today().isoformat()
+    out = Path(a.out or DATA / "runs" / f"{stamp}-scan.json")
+    if new or not a.incremental:                      # hourly runs with nothing new leave no empty run file
+        _jobs_out(new, out)
     if not a.dry_run:
         store.record(new)
+        if state is not None:
+            state.mark(ok, started)
+            state.save()
     print(f"config: {cfg['_path']}")
-    print(f"fetched {len(all_jobs)} | matched {len(matched)} | new {len(new)} | already seen {len(dupes)}")
+    mode = "incremental" if a.incremental else "full window"
+    print(f"{mode} | fetched {len(all_jobs)} | already processed {len(titled) - len(unseen)} | "
+          f"matched {len(matched)} | new {len(new)} | duplicates in batch {len(dupes)}")
     _summary(new)
     for e in errors:
         print(f"  ! {e}", file=sys.stderr)
-    print(f"new jobs written to {out}")
+    print(f"new jobs written to {out}" if (new or not a.incremental) else "no new jobs since the last run")
     return 0
 
 
@@ -169,6 +189,15 @@ def cmd_apply(a) -> int:
         for name in runner.SITES:
             print(f"  {name:10} {'AUTO since ' + state[name]['approved_on'] if runner.auto_approved(state, name) else 'review (sample first)'}")
         return 0
+    if a.action == "shortlist":
+        # Recommended jobs always run in review mode: nothing is submitted without your confirmation,
+        # even on a site where automatic mode is on.
+        queue = runner.shortlist_queue(a.pick)
+        for q in queue:
+            print(f"  #{q.pick} {q.role} | {q.company} | {'assist (you submit)' if q.site is None else q.site.name}"
+                  f"{' | SKIP: ' + q.skip if q.skip else ''}")
+        runner.run(queue, force_review=True)
+        return 0
     queue = runner.build_queue(a.site)
     if a.job:
         queue = [q for q in queue if canonical(q.url) == canonical(a.job)] or [
@@ -189,6 +218,36 @@ def cmd_apply(a) -> int:
         runner.run(queue)
         return 0
     return 1
+
+
+def cmd_shortlist(a) -> int:
+    from . import shortlist
+    cfg = load(a.config)
+    if a.gmail_in:
+        print(f"stored {shortlist.merge_gmail(a.gmail_in)} Gmail check(s) in {shortlist.GMAIL}")
+    if a.candidates:
+        cands, dupes = shortlist.eligible(cfg)
+        cands.sort(key=lambda c: c["match"], reverse=True)
+        todo = [{k: c[k] for k in ("key", "title", "company", "location", "match", "official_url",
+                                   "research_needed", "gmail_checked")} for c in cands]
+        print(json.dumps({"candidates": todo, "duplicates": [
+            {"title": d["title"], "company": d["company"], "why": d["duplicate"]} for d in dupes]},
+            indent=1, ensure_ascii=False))
+        return 0
+    result = shortlist.build(cfg)
+    js, page = shortlist.write(result)
+    print(f"top {len(result['top'])} of {len(result['top']) + len(result['below_cut'])} above match "
+          f"{result['settings']['min_match']} | duplicates excluded {len(result['duplicates'])}")
+    for c in result["top"]:
+        q = c["company_quality"]
+        print(f"  #{c['pick']} {c['final']:5} | match {c['match']} | company {q['quality'] if q['quality'] is not None else 'n/a':>3} "
+              f"| {q['recommendation']:8} | {c['title']} | {c['company']} | {c['location'] or '?'}")
+        for f in c["flags"]:
+            print(f"      ! {f}")
+    for d in result["duplicates"]:
+        print(f"  duplicate: {d['title']} | {d['company']}: {d['duplicate']}")
+    print(f"shortlist: {js}\npage: {page}")
+    return 0
 
 
 def cmd_resume(a) -> int:
@@ -224,6 +283,8 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("scan", help="fetch watched ATS boards (+ LinkedIn), filter, de-dupe")
     s.add_argument("--linkedin", action="store_true", help="also run LinkedIn public job search (needs Bun)")
     s.add_argument("--no-boards", action="store_true", help="skip ATS boards")
+    s.add_argument("--incremental", action="store_true",
+                   help="only jobs posted since each source's last successful run (data/scan_state.json)")
     s.add_argument("--out"); s.add_argument("--dry-run", action="store_true")
     s.set_defaults(fn=cmd_scan)
 
@@ -252,11 +313,18 @@ def main(argv: list[str] | None = None) -> int:
     o.set_defaults(fn=cmd_outreach_page)
 
     ap = sub.add_parser("apply", help="Playwright auto-apply (review a sample per site, then automatic if you approve)")
-    ap.add_argument("action", choices=["queue", "prep", "run", "login", "status", "revoke"])
+    ap.add_argument("action", choices=["queue", "prep", "run", "login", "status", "revoke", "shortlist"])
+    ap.add_argument("--pick", type=int, help="shortlist: the job number on the latest shortlist (default: all)")
     ap.add_argument("--site", choices=["greenhouse", "lever", "ashby", "workday", "linkedin"])
     ap.add_argument("--job", help="a single job URL")
     ap.add_argument("--company"); ap.add_argument("--role")
     ap.set_defaults(fn=cmd_apply)
+
+    sl = sub.add_parser("shortlist", help="top jobs by match + company quality, minus ones already applied to")
+    sl.add_argument("--candidates", action="store_true",
+                    help="list jobs above the match bar that still need AmbitionBox research or a Gmail check")
+    sl.add_argument("--gmail-in", help="JSON from the agent's Gmail search: [{key, status, evidence}]")
+    sl.set_defaults(fn=cmd_shortlist)
 
     rs = sub.add_parser("resume", help="render a resume (plain | sidebar | sidebar_metric) from a JSON data file")
     rs.add_argument("--data"); rs.add_argument("--out"); rs.add_argument("--png")

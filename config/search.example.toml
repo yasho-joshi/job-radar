@@ -15,6 +15,7 @@ remote_ok = true
 also_accept = ["Germany", "Netherlands", "Ireland", "United Kingdom"]
 max_age_days = 14          # LinkedIn jobs and posts
 ats_max_age_days = 60      # company ATS boards list only open roles; their date is when the posting was created
+require_posted_date = false  # true drops jobs whose posting date is unknown
 
 [linkedin]
 # LinkedIn place strings for the public job search CLI.
@@ -28,6 +29,14 @@ place_hashtags = ["#bengaluru", "#bangalore", "#india"]
 mode_hashtags = ["#remote", "#hybrid"]
 extra_hashtags = []           # e.g. ["#fintech", "#saas"]
 max_age_days = 14
+
+[shortlist]
+min_match = 80          # profile-match score must be above this (0-100)
+top_n = 5
+match_weight = 0.7      # final rank = match_weight x match + quality_weight x company quality
+quality_weight = 0.3
+salary_floor_lpa = 0    # flag roles whose AmbitionBox salary range tops out below this (INR lakh a year)
+research_max_age_days = 7
 
 # Companies to watch directly through their public ATS boards.
 # Find a slug from the careers URL: boards.greenhouse.io/<slug>, jobs.lever.co/<slug>,
@@ -51,5 +60,5 @@ name = "Notion"
 
 [[boards]]
 source = "workday"
-careers_url = "https://adobe.wd5.myworkdayjobs.com/external_experienced"
-name = "Adobe"
+careers_url = "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite"
+name = "NVIDIA"

@@ -98,8 +98,8 @@ class Discovery(unittest.TestCase):
                          {"source": "lever", "slug": "acme", "region": "eu"})
         self.assertEqual(queries.board_from_url("https://jobs.ashbyhq.com/Notion/xyz"),
                          {"source": "ashby", "slug": "Notion"})
-        self.assertEqual(queries.board_from_url("https://adobe.wd5.myworkdayjobs.com/en-US/external_experienced/job/x"),
-                         {"source": "workday", "careers_url": "https://adobe.wd5.myworkdayjobs.com/external_experienced"})
+        self.assertEqual(queries.board_from_url("https://nvidia.wd5.myworkdayjobs.com/en-US/NVIDIAExternalCareerSite/job/x"),
+                         {"source": "workday", "careers_url": "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite"})
         self.assertIsNone(queries.board_from_url("https://evil-greenhouse.io/stripe"))
         self.assertIsNone(queries.board_from_url("http://boards.greenhouse.io/stripe"))
 
@@ -175,8 +175,8 @@ class Sources(unittest.TestCase):
         self.assertEqual(js[0].work_mode, "hybrid")
 
     def test_workday_url_and_dates(self):
-        ep = workday.parse_careers_url("https://adobe.wd5.myworkdayjobs.com/en-US/external_experienced")
-        self.assertEqual(ep, {"host": "adobe.wd5.myworkdayjobs.com", "tenant": "adobe", "site": "external_experienced"})
+        ep = workday.parse_careers_url("https://nvidia.wd5.myworkdayjobs.com/en-US/NVIDIAExternalCareerSite")
+        self.assertEqual(ep, {"host": "nvidia.wd5.myworkdayjobs.com", "tenant": "nvidia", "site": "NVIDIAExternalCareerSite"})
         today = date(2026, 11, 1)
         self.assertEqual(workday.posted_from_label("Posted Today", today), "2026-11-01")
         self.assertEqual(workday.posted_from_label("Posted 3 Days Ago", today), "2026-10-29")

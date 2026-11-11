@@ -25,7 +25,7 @@ from ..config import DATA, ROOT
 from ..dedup import canonical_url
 from .answers import AnswerBank, choose_for
 from .fields import Field, discover, fill
-from .sites import SITES, Site, blocked_reason, detect, needs_sign_in, page_says
+from .sites import CLOSED_COMMON, SITES, Site, blocked_reason, detect, needs_sign_in, page_says
 
 STATE = DATA / "apply_state.json"
 TRACKER = DATA / "tracker.csv"
@@ -52,6 +52,8 @@ class QueueItem:
     location: str = ""
     files: dict = field(default_factory=dict)
     skip: str = ""
+    pick: int | None = None          # number on the latest shortlist
+    assist: bool = False             # unsupported site: fill what we can, the user submits
 
     @property
     def slug(self) -> str:
@@ -131,9 +133,10 @@ def build_queue(only_site: str | None = None) -> list[QueueItem]:
     for r in rows:
         if r.get("status") not in ("ranked", "new"):
             continue
+        # /rank writes "verdict"/"score"; older rows used "rank_verdict"/"rank_score"
         item = QueueItem(company=r.get("company", ""), role=r.get("title", ""), url=r.get("url", ""),
-                         site=detect(r.get("url", "")), verdict=r.get("rank_verdict", ""), score=r.get("rank_score"),
-                         location=r.get("location") or "")
+                         site=detect(r.get("url", "")), verdict=r.get("verdict") or r.get("rank_verdict", ""),
+                         score=r.get("score", r.get("rank_score")), location=r.get("location") or "")
         attach_files(item)
         if item.site is None:
             item.skip = "site not supported for auto-apply (apply manually)"
@@ -141,10 +144,43 @@ def build_queue(only_site: str | None = None) -> list[QueueItem]:
             continue
         elif canonical_url(item.url) in done:
             item.skip = "already applied"
-        elif (item.verdict or "").lower() not in FIT_OK:
+        elif not fit_ok(item.verdict):
             item.skip = f"fit '{item.verdict or 'unranked'}' (only Strong/Good fit; run /rank)"
         elif "resume" not in item.files:
             item.skip = f"no tailored CV (output/cv/{item.slug}.pdf or files.json; run /tailor)"
+        out.append(item)
+    return out
+
+
+def fit_ok(verdict: str) -> bool:
+    v = (verdict or "").strip().lower()
+    return v in FIT_OK or f"{v} fit" in FIT_OK
+
+
+def shortlist_queue(pick: int | None = None, path: Path | None = None) -> list[QueueItem]:
+    """Queue from the latest shortlist (data/runs/*-shortlist.json). Prefers the employer's own posting.
+    Jobs on sites the runner does not know become assist items: filled, then submitted by the user."""
+    from ..shortlist import latest_path
+    p = path or latest_path()
+    if not p:
+        return []
+    done = applied_urls()
+    out = []
+    for c in json.loads(p.read_text(encoding="utf-8")).get("top", []):
+        if pick and c.get("pick") != pick:
+            continue
+        url = c.get("official_url") or c.get("url", "")
+        site = detect(url) or detect(c.get("url", ""))
+        if site and not detect(url):
+            url = c.get("url", "")       # official page unknown to the runner, but the listing is supported
+        item = QueueItem(company=c.get("company", ""), role=c.get("title", ""), url=url, site=site,
+                         verdict=c.get("verdict", ""), score=c.get("match"), location=c.get("location") or "",
+                         pick=c.get("pick"), assist=site is None)
+        attach_files(item)
+        if canonical_url(url) in done or canonical_url(c.get("url", "")) in done:
+            item.skip = "already applied"
+        elif "resume" not in item.files:
+            item.skip = f"no tailored CV yet: run /tailor for #{item.pick} first (output/cv/{item.slug}.pdf)"
         out.append(item)
     return out
 
@@ -258,6 +294,40 @@ def wait_for_user_on_block(page, io: Console, reason: str) -> bool:
     return v.lower() != "skip" and blocked_reason(page) is None
 
 
+PREFERENCES = ROOT / "profile" / "preferences.toml"
+ACCOUNT_EMAIL_JS = r"""
+(email) => {
+  const vis = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  if (![...document.querySelectorAll('input[type=password]')].some(vis)) return false;  // only on sign-in / sign-up
+  const f = [...document.querySelectorAll('input[type=email], input[autocomplete=email], input[autocomplete=username],'
+    + ' input[data-automation-id="email"], input[name*="email" i], input[id*="email" i]')].find(e => vis(e) && !e.value);
+  if (!f) return false;
+  const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+  set.call(f, email); f.dispatchEvent(new Event('input', {bubbles: true})); f.dispatchEvent(new Event('change', {bubbles: true}));
+  return true;
+}
+"""
+
+
+def account_email() -> str:
+    """The one account detail job-radar keeps: apply_email in profile/preferences.toml. No passwords."""
+    import tomllib
+    try:
+        with open(PREFERENCES, "rb") as fh:
+            return str(tomllib.load(fh).get("apply_email", "")).strip()
+    except (OSError, ValueError):
+        return ""
+
+
+def prefill_account_email(page) -> str:
+    """On a sign-in or create-account form, put the account email in an empty email box. Never the password."""
+    email = account_email()
+    try:
+        return email if email and page.evaluate(ACCOUNT_EMAIL_JS, email) else ""
+    except Exception:
+        return ""
+
+
 # ---------------------------------------------------------------- Workday
 WD_NEXT = ('[data-automation-id="pageFooterNextButton"], [data-automation-id="bottom-navigation-next-button"], '
            '[data-automation-id="nextButton"]')
@@ -313,8 +383,11 @@ def workday_flow(page, item: QueueItem, bank: AnswerBank, io: Console, log: list
     for _ in range(5):                                            # sign-in handoff
         if not signin_step():
             break
+        email = prefill_account_email(page)
         io.say("\n   Workday wants you signed in. Sign in or create your account in the browser window yourself"
                " (job-radar never types passwords). Your session is kept for later Workday jobs.")
+        if email:
+            io.say(f"   Account email filled in for you: {email} (from apply_email in profile/preferences.toml).")
         if io.ask("   Press Enter once you see the first application step (or type 'skip'): ").lower() == "skip":
             return "skipped"
         page.wait_for_timeout(1500)
@@ -445,8 +518,55 @@ def apply_one(page, item: QueueItem, bank: AnswerBank, io: Console, review: bool
 
 
 # ---------------------------------------------------------------- the run
+def assist_one(page, item: QueueItem, bank: AnswerBank, io: Console) -> str:
+    """Employer careers pages the runner has no rules for: open, fill what the answers cover, page by
+    page, and stop. The user reviews and clicks submit in the browser; job-radar never does here."""
+    out_dir = DATA / "applications" / item.slug
+    out_dir.mkdir(parents=True, exist_ok=True)
+    page.goto(item.url, wait_until="domcontentloaded", timeout=60000)
+    page.wait_for_timeout(2500)
+    if page_says(page, CLOSED_COMMON):
+        return "failed: posting is closed"
+    io.say("   Employer careers page: job-radar fills the fields it can; you review and submit in the browser.")
+    log: list[dict] = []
+    while True:
+        v = io.ask("   Open the application form in the browser (click Apply; sign in yourself if asked),"
+                   " then press Enter to fill it (or type 'skip'): ").lower()
+        if v == "skip":
+            return "skipped"
+        page = page.context.pages[-1]                   # "Apply" often opens a new tab
+        if prefill_account_email(page):
+            io.say(f"   This page wants an account: filled {account_email()} as the email. Enter the password"
+                   " yourself, then press Enter again.")
+            continue
+        reason = blocked_reason(page)
+        if reason and not wait_for_user_on_block(page, io, reason):
+            return f"failed: {reason}"
+        step_log, ok = fill_page(page, item, bank, io)
+        log += step_log
+        if not ok:
+            return "skipped"
+        page.screenshot(path=str(out_dir / "form_before_submit.png"), full_page=True)
+        (out_dir / "answers_used.json").write_text(json.dumps(log, indent=1, ensure_ascii=False), encoding="utf-8")
+        io.say(f"\n   Filled on this page ({len(step_log)} fields):")
+        for row in step_log:
+            io.say(f"     - {row['question'][:70]}: {str(row['answer'])[:60]}   [{row['source']}]")
+        v = io.ask("   [n] I moved to the next page, fill again  [d] I reviewed it and submitted it myself"
+                   "  [k] skip  [q] quit: ").lower()
+        if v == "n":
+            continue
+        if v == "d":
+            (out_dir / "result.json").write_text(json.dumps({"submitted": datetime.now().isoformat(timespec="seconds"),
+                                                             "mode": "assist, submitted by you", "url": item.url}),
+                                                 encoding="utf-8")
+            record_application(item, f"assisted apply; submitted by you {date.today().isoformat()}")
+            return "submitted"
+        return "quit" if v == "q" else "skipped"
+
+
 def run(queue: list[QueueItem], io: Console | None = None, headless: bool = False, page_factory=None,
-        delay_scale: float = 1.0) -> dict:
+        delay_scale: float = 1.0, force_review: bool = False) -> dict:
+    """force_review: always stop for the user's confirmation before submitting (used for the shortlist)."""
     io = io or Console()
     bank = AnswerBank()
     state = load_state()
@@ -463,9 +583,22 @@ def run(queue: list[QueueItem], io: Console | None = None, headless: bool = Fals
             if sum(per_site.values()) >= MAX_PER_RUN:
                 io.say(f"Run limit of {MAX_PER_RUN} submissions reached; the rest wait for the next run.")
                 break
+            if site is None:                               # assist: the user submits on the employer's page
+                io.say(f"\n== {item.role} | {item.company} | employer careers page | ASSIST (you submit)")
+                try:
+                    result = assist_one(page, item, bank, io)
+                except Exception as e:
+                    result = f"failed: {type(e).__name__}: {str(e)[:150]}"
+                io.say(f"   -> {result}")
+                if result == "quit":
+                    break
+                counts["submitted" if result == "submitted" else "skipped" if result == "skipped" else "failed"] += 1
+                if result == "submitted":
+                    per_site["assist"] = per_site.get("assist", 0) + 1
+                continue
             if per_site.get(site.name, 0) >= site.max_per_run:
                 continue                                   # this site's cap is reached; others may continue
-            review = not auto_approved(state, site.name)
+            review = force_review or not auto_approved(state, site.name)
             io.say(f"\n== {item.role} | {item.company} | {site.name} | {'REVIEW' if review else 'AUTO'}")
             try:
                 result = apply_one(page, item, bank, io, review)
@@ -478,8 +611,8 @@ def run(queue: list[QueueItem], io: Console | None = None, headless: bool = Fals
             counts[key] += 1
             if result == "submitted":
                 per_site[site.name] = per_site.get(site.name, 0) + 1
-                if review:
-                    left = sum(1 for q in todo if q.site.name == site.name) - per_site[site.name]
+                if review and not force_review:
+                    left = sum(1 for q in todo if q.site and q.site.name == site.name) - per_site[site.name]
                     choice = io.ask(f"\n   Sample for {site.name} went through. Apply to the remaining {left} "
                                     f"{site.name} job(s) automatically? [a] automatic  [m] one more manual  [q] stop: ").lower()
                     if choice == "a":

@@ -69,7 +69,9 @@ DISCOVER_JS = r"""
   root.querySelectorAll('input, textarea, select, [role="combobox"]').forEach(el => {
     const type = (el.getAttribute('role') === 'combobox' && el.tagName !== 'SELECT') ? 'combobox'
                : el.tagName === 'SELECT' ? 'select' : el.tagName === 'TEXTAREA' ? 'textarea' : (el.type || 'text');
-    if (['hidden', 'submit', 'button', 'image', 'reset', 'search'].includes(type)) return;
+    // Passwords are never discovered, so they are never filled, asked for, logged or remembered.
+    if (['hidden', 'submit', 'button', 'image', 'reset', 'search', 'password'].includes(type)) return;
+    if (/passw|passcode|\botp\b|one.?time.?(code|pass)|current-password|new-password/i.test((el.name || '') + ' ' + (el.id || '') + ' ' + (el.autocomplete || ''))) return;
     if (/recaptcha|captcha/i.test(el.name || el.id || '')) return;
     if (!vis(el) && type !== 'radio' && type !== 'checkbox') return;
     const required = el.required || el.getAttribute('aria-required') === 'true' || /[✱*]\s*$/.test((labelOf(el) || ''));

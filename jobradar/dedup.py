@@ -69,6 +69,9 @@ class SeenStore:
                 self.urls.add(row.get("url", ""))
                 self.keys.add(row.get("key", ""))
 
+    def has(self, job: Job) -> bool:
+        return canonical_url(job.url) in self.urls or job_key(job.company, job.title) in self.keys
+
     def split(self, jobs: list[Job]) -> tuple[list[Job], list[Job]]:
         """Return (new, duplicates). Also de-dupes within the batch, preferring ATS over aggregators."""
         rank = {"greenhouse": 0, "lever": 0, "ashby": 0, "workday": 0, "post": 1, "linkedin": 2, "websearch": 3}

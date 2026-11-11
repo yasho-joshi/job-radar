@@ -14,12 +14,15 @@ If `profile/search.toml` is missing, say so and offer `/setup`. Windows: use `py
 ## Step 1: Watched ATS boards + LinkedIn public jobs (zero tokens)
 
 ```
-py -m jobradar scan --linkedin
+py -m jobradar scan --linkedin --incremental
 ```
 
 This fetches every `[[boards]]` entry (Greenhouse, Lever, Ashby, Workday public APIs), runs the LinkedIn public job
-search for each role x location, filters by title / place / work mode / age, and records new jobs in
-`data/seen.jsonl`. Note the run file it prints. If Bun is missing, run without `--linkedin` and say LinkedIn jobs
+search for each role x location, filters by title / place / work mode / age (3 days, and jobs without a posting
+date are dropped), and records new jobs in `data/seen.jsonl`. `--incremental` asks each source only for what was
+posted since its last successful run (`data/scan_state.json`); a source that failed keeps its old mark so nothing
+is missed, and jobs already in `data/seen.jsonl` are never fetched or scored again. When it prints
+"no new jobs since the last run", there is nothing to rank. Note the run file it prints. If Bun is missing, run without `--linkedin` and say LinkedIn jobs
 were skipped. Report errors per source; one failed board never stops the run.
 
 ## Step 2: Discover more companies on ATS boards (web search)

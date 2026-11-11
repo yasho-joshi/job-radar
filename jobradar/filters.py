@@ -53,9 +53,14 @@ def location_matches(job: Job, search: dict) -> bool:
     return not leftover
 
 
-def fresh_enough(job: Job, max_age_days: int | None, today: date | None = None) -> bool:
-    if not max_age_days or not job.posted:
-        return True  # unknown dates are kept and flagged downstream, never guessed
+def fresh_enough(job: Job, max_age_days: int | None, today: date | None = None,
+                 require_date: bool = False) -> bool:
+    if not max_age_days:
+        return True
+    if not job.posted:
+        # unknown dates are never guessed: kept and flagged downstream, or dropped when the
+        # config asks for a provable posting date (search.require_posted_date)
+        return not require_date
     try:
         posted = date.fromisoformat(job.posted[:10])
     except ValueError:
@@ -81,5 +86,6 @@ def max_age_for(job: Job, search: dict) -> int | None:
 
 def apply(jobs: list[Job], cfg: dict) -> list[Job]:
     s = cfg.get("search", {})
+    strict = bool(s.get("require_posted_date", False))
     return [j for j in by_title(jobs, cfg)
-            if location_matches(j, s) and fresh_enough(j, max_age_for(j, s))]
+            if location_matches(j, s) and fresh_enough(j, max_age_for(j, s), require_date=strict)]

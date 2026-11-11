@@ -28,6 +28,7 @@ COUNTRY_ALIASES = {"usa": "united states", "us": "united states", "uk": "united 
 
 EEO = re.compile(r"\b(gender|race|racial|ethnic\w*|veteran\w*|disabilit\w*|pronoun\w*|sexual orientation|"
                  r"transgender|hispanic|latino)\b")
+SECRET = re.compile(r"passw|passcode|\botp\b|one time (code|password)|verification code|security answer")
 DECLINE = re.compile(r"decline|prefer not|do not wish|don t wish|not to (say|disclose|answer)|rather not")
 
 
@@ -50,6 +51,8 @@ class AnswerBank:
 
     # -- persistence for answers the user gives during a run --------------------------
     def remember(self, label: str, value: str) -> None:
+        if SECRET.search(normalize_label(label)):
+            return                       # never write a password, PIN or code to disk
         self.learned[normalize_label(label)] = value
         self.learned_path.parent.mkdir(parents=True, exist_ok=True)
         self.learned_path.write_text(json.dumps(self.learned, indent=1, ensure_ascii=False), encoding="utf-8")
