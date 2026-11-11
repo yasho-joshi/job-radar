@@ -38,7 +38,7 @@ review yourself. Local-first, runs inside an AI coding agent (Claude Code, Codex
 - An agent CLI, e.g. `npm install -g @anthropic-ai/claude-code`
 
 ```
-git clone https://github.com/y2j-xdr/job-radar.git && cd job-radar
+git clone https://github.com/yasho-joshi/job-radar.git && cd job-radar
 claude          # then run /setup
 ```
 
